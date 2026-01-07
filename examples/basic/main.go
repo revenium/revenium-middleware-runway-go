@@ -43,11 +43,11 @@ func main() {
 	fmt.Println("─────────────────────────────────────────")
 
 	imageToVideoReq := &revenium.ImageToVideoRequest{
-		PromptImage: "https://example.com/sample-image.jpg", // Replace with actual image URL or base64
+		PromptImage: "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b6/Image_created_with_a_mobile_phone.png/1200px-Image_created_with_a_mobile_phone.png", // Valid public image
 		PromptText:  "A cinematic shot of mountains at sunset",
 		Model:       "gen3a_turbo",
 		Duration:    5,
-		Ratio:       "16:9",
+		Ratio:       "1280:768", // Valid Runway ratio
 	}
 
 	result, err := client.ImageToVideo(ctx, imageToVideoReq, metadata)

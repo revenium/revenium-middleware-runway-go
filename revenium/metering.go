@@ -58,6 +58,7 @@ func (m *MeteringClient) buildMeteringPayload(result *VideoGenerationResult, met
 
 	// Extract video duration from metadata if available (default to 5 seconds for gen3a_turbo)
 	var videoDurationSeconds float64 = 5.0 // Runway default
+	var requestedDurationSeconds float64 = 5.0 // Runway default requested duration
 	if result.Metadata != nil {
 		if dur, ok := result.Metadata["duration"].(int); ok {
 			videoDurationSeconds = float64(dur)
@@ -66,23 +67,35 @@ func (m *MeteringClient) buildMeteringPayload(result *VideoGenerationResult, met
 		} else if dur, ok := result.Metadata["durationSeconds"].(float64); ok {
 			videoDurationSeconds = dur
 		}
+		// Extract requested duration for per-second billing
+		if reqDur, ok := result.Metadata["requestedDuration"].(int); ok {
+			requestedDurationSeconds = float64(reqDur)
+		} else if reqDur, ok := result.Metadata["requestedDuration"].(float64); ok {
+			requestedDurationSeconds = reqDur
+		} else if reqDur, ok := result.Metadata["requestedDurationSeconds"].(float64); ok {
+			requestedDurationSeconds = reqDur
+		} else {
+			// Default to actual duration if requested not specified
+			requestedDurationSeconds = videoDurationSeconds
+		}
 	}
 
 	// Build base payload with durationSeconds at TOP LEVEL for billing (per API contract)
 	payload := map[string]interface{}{
-		"operationType":    "VIDEO",
-		"provider":         "runway",
-		"modelSource":      "RUNWAY",
-		"model":            result.Model,
-		"transactionId":    result.ID,
-		"requestTime":      requestTime.Format(time.RFC3339),
-		"responseTime":     now.Format(time.RFC3339),
-		"requestDuration":  result.Duration.Milliseconds(),
-		"durationSeconds":  videoDurationSeconds, // CRITICAL: video duration for billing
-		"stopReason":       stopReason,
-		"costType":         "AI",
-		"isStreamed":       false,
-		"middlewareSource": "revenium-middleware-runway-go",
+		"operationType":            "VIDEO",
+		"provider":                 "runway",
+		"modelSource":              "RUNWAY",
+		"model":                    result.Model,
+		"transactionId":            result.ID,
+		"requestTime":              requestTime.Format(time.RFC3339),
+		"responseTime":             now.Format(time.RFC3339),
+		"requestDuration":          result.Duration.Milliseconds(),
+		"durationSeconds":          videoDurationSeconds,          // CRITICAL: actual video duration for billing
+		"requestedDurationSeconds": requestedDurationSeconds,      // CRITICAL: requested duration for per-second billing
+		"stopReason":               stopReason,
+		"costType":                 "AI",
+		"isStreamed":               false,
+		"middlewareSource":         GetMiddlewareSource(),
 	}
 
 	// Add error information if failed

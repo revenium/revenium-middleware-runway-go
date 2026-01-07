@@ -119,5 +119,8 @@ type UsageMetadata struct {
 	Subscriber           map[string]interface{} `json:"subscriber,omitempty"`
 	TaskID               string                 `json:"taskId,omitempty"`
 	ResponseQualityScore *float64               `json:"responseQualityScore,omitempty"`
+	// Multimodal job identifiers
+	VideoJobID           string                 `json:"videoJobId,omitempty"`
+	AudioJobID           string                 `json:"audioJobId,omitempty"`
 	Custom               map[string]interface{} `json:"custom,omitempty"`
 }

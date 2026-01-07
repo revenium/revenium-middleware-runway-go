@@ -13,6 +13,7 @@ type ReveniumRunway struct {
 	meteringClient *MeteringClient
 	config         *Config
 	mu             sync.RWMutex
+	wg             sync.WaitGroup
 }
 
 var (
@@ -142,6 +143,14 @@ func (r *ReveniumRunway) ImageToVideo(ctx context.Context, req *ImageToVideoRequ
 		OutputURLs: statusResp.Output,
 		Duration:   duration,
 		Model:      req.Model,
+		Metadata:   make(map[string]interface{}),
+	}
+
+	// Store requested duration for metering (per-second billing)
+	if req.Duration > 0 {
+		result.Metadata["requestedDuration"] = req.Duration
+	} else {
+		result.Metadata["requestedDuration"] = 5 // Runway default
 	}
 
 	// Copy error information if failed
@@ -153,7 +162,11 @@ func (r *ReveniumRunway) ImageToVideo(ctx context.Context, req *ImageToVideoRequ
 	}
 
 	// Send metering asynchronously (fire-and-forget)
-	go r.sendMetering(context.Background(), result, metadata)
+	r.wg.Add(1)
+	go func() {
+		defer r.wg.Done()
+		r.sendMetering(context.Background(), result, metadata)
+	}()
 
 	return result, nil
 }
@@ -189,6 +202,14 @@ func (r *ReveniumRunway) VideoToVideo(ctx context.Context, req *VideoToVideoRequ
 		OutputURLs: statusResp.Output,
 		Duration:   duration,
 		Model:      req.Model,
+		Metadata:   make(map[string]interface{}),
+	}
+
+	// Store requested duration for metering (per-second billing)
+	if req.Duration > 0 {
+		result.Metadata["requestedDuration"] = req.Duration
+	} else {
+		result.Metadata["requestedDuration"] = 5 // Runway default
 	}
 
 	// Copy error information if failed
@@ -200,7 +221,11 @@ func (r *ReveniumRunway) VideoToVideo(ctx context.Context, req *VideoToVideoRequ
 	}
 
 	// Send metering asynchronously (fire-and-forget)
-	go r.sendMetering(context.Background(), result, metadata)
+	r.wg.Add(1)
+	go func() {
+		defer r.wg.Done()
+		r.sendMetering(context.Background(), result, metadata)
+	}()
 
 	return result, nil
 }
@@ -247,7 +272,11 @@ func (r *ReveniumRunway) UpscaleVideo(ctx context.Context, req *VideoUpscaleRequ
 	}
 
 	// Send metering asynchronously (fire-and-forget)
-	go r.sendMetering(context.Background(), result, metadata)
+	r.wg.Add(1)
+	go func() {
+		defer r.wg.Done()
+		r.sendMetering(context.Background(), result, metadata)
+	}()
 
 	return result, nil
 }
@@ -265,8 +294,18 @@ func (r *ReveniumRunway) sendMetering(ctx context.Context, result *VideoGenerati
 	}
 }
 
-// Close closes the client and cleans up resources
+// Flush waits for all pending metering goroutines to complete.
+// Call this before program exit to ensure all metering data is sent.
+func (r *ReveniumRunway) Flush() {
+	r.wg.Wait()
+}
+
+// Close closes the client and cleans up resources.
+// It waits for pending metering operations before closing.
 func (r *ReveniumRunway) Close() error {
+	// Wait for pending metering operations
+	r.Flush()
+
 	r.mu.Lock()
 	defer r.mu.Unlock()
 

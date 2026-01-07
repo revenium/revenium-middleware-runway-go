@@ -63,7 +63,7 @@ func (c *Config) LoadFromEnv() error {
 
 	// Then load from environment variables (which may have been set by .env files)
 	c.RunwayAPIKey = os.Getenv("RUNWAY_API_KEY")
-	c.RunwayBaseURL = getEnvOrDefault("RUNWAY_BASE_URL", "https://api.runwayml.com")
+	c.RunwayBaseURL = getEnvOrDefault("RUNWAY_BASE_URL", "https://api.dev.runwayml.com")
 	c.RunwayVersion = getEnvOrDefault("RUNWAY_VERSION", "2024-11-06")
 
 	c.ReveniumAPIKey = os.Getenv("REVENIUM_METERING_API_KEY")
