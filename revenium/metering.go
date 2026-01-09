@@ -165,6 +165,12 @@ func (m *MeteringClient) buildMeteringPayload(result *VideoGenerationResult, met
 		if metadata.TaskID != "" {
 			payload["taskId"] = metadata.TaskID
 		}
+		if metadata.VideoJobID != "" {
+			payload["videoJobId"] = metadata.VideoJobID
+		}
+		if metadata.AudioJobID != "" {
+			payload["audioJobId"] = metadata.AudioJobID
+		}
 		if metadata.ResponseQualityScore != nil {
 			payload["responseQualityScore"] = *metadata.ResponseQualityScore
 		}

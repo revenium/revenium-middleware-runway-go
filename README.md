@@ -1,218 +1,304 @@
 # Revenium Middleware for Runway ML (Go)
 
-A lightweight, production-ready middleware that adds **Revenium metering and tracking** to Runway ML API calls.
-
-[![Go Version](https://img.shields.io/badge/Go-1.21%2B-blue)](https://golang.org/)
-[![Documentation](https://img.shields.io/badge/docs-revenium.io-blue)](https://docs.revenium.io)
-[![Website](https://img.shields.io/badge/website-revenium.ai-blue)](https://www.revenium.ai)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+Official Go middleware for Runway ML API with automatic Revenium metering and usage tracking.
 
 ## Features
 
-- **Seamless Integration** - Drop-in middleware with minimal code changes
-- **Automatic Metering** - Tracks all API calls with detailed usage metrics
-- **Gen-3 Alpha Support** - Full support for Runway's latest video generation
-- **Image-to-Video** - Generate videos from images with text prompts
-- **Video-to-Video** - Transform existing videos with AI
-- **Video Upscaling** - Enhance video resolution and quality
-- **Custom Metadata** - Add custom tracking metadata to any request
-- **Production Ready** - Automatic task polling with retry logic
+- Complete Runway ML API support (Gen-3 Alpha)
+  - Image-to-video generation
+  - Video-to-video transformation
+  - Video upscaling
+- Automatic task polling with configurable timeouts
+- Automatic Revenium metering for AI usage tracking
+- Asynchronous metering (fire-and-forget)
+- Comprehensive error handling
+- Context-based metadata support
+- Production-ready with retry logic
 
-## Getting Started (5 minutes)
-
-### Step 1: Create Your Project
-
-```bash
-mkdir my-runway-app
-cd my-runway-app
-go mod init my-runway-app
-```
-
-### Step 2: Install Dependencies
+## Installation
 
 ```bash
 go get github.com/revenium/revenium-middleware-runway-go
-go mod tidy
 ```
 
-### Step 3: Create Environment File
+## Quick Start
 
-Create `.env` file in your project root:
+### 1. Set up environment variables
+
+Create a `.env` file:
 
 ```bash
-# Required - Get from https://app.runwayml.com/video-tools/gen-3/turbo/settings/api-keys
+# Runway API Configuration
 RUNWAY_API_KEY=your_runway_api_key_here
 
-# Required - Get from Revenium dashboard (https://app.revenium.ai)
-REVENIUM_METERING_API_KEY=your_revenium_api_key_here
-
-# Optional - Revenium API base URL (defaults to production)
-REVENIUM_METERING_BASE_URL=https://api.revenium.ai
+# Revenium Metering Configuration
+REVENIUM_METERING_API_KEY=hak_your_revenium_api_key_here
 ```
 
-**Replace the API keys with your actual keys!**
+### 2. Initialize and use the middleware
 
-> **Automatic .env Loading**: The middleware automatically loads `.env` files from your project directory. No need to manually export environment variables!
+```go
+package main
 
-## Examples
+import (
+    "context"
+    "fmt"
+    "log"
 
-This repository includes runnable examples demonstrating how to use the Revenium middleware with Runway ML:
+    "github.com/revenium/revenium-middleware-runway-go/revenium"
+)
 
-- **[Examples Guide](./examples/README.md)** - Detailed guide for running examples
-- **Go Examples**: `examples/basic/`, `examples/advanced/`
+func main() {
+    // Initialize middleware
+    if err := revenium.Initialize(); err != nil {
+        log.Fatal(err)
+    }
 
-**Run examples after setup:**
+    // Get client
+    client, err := revenium.GetClient()
+    if err != nil {
+        log.Fatal(err)
+    }
+    defer client.Close()
 
-```bash
-# Clone this repository:
-git clone https://github.com/revenium/revenium-middleware-runway-go.git
-cd revenium-middleware-runway-go
-go mod download
-go mod tidy
+    // Create context and metadata
+    ctx := context.Background()
+    metadata := &revenium.UsageMetadata{
+        OrganizationID: "org-123",
+        ProductID:      "product-abc",
+        Subscriber: map[string]interface{}{
+            "id":    "user-456",
+            "email": "user@example.com",
+        },
+    }
 
-# Run examples:
-go run examples/basic/main.go
-go run examples/advanced/main.go
+    // Generate video from image
+    req := &revenium.ImageToVideoRequest{
+        PromptImage: "https://example.com/image.jpg",
+        PromptText:  "A cinematic shot of mountains at sunset",
+        Model:       "gen3a_turbo",
+        Duration:    5,
+        Ratio:       "16:9",
+    }
+
+    result, err := client.ImageToVideo(ctx, req, metadata)
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    fmt.Printf("Video generated: %v\n", result.OutputURLs)
+}
 ```
 
-See **[Examples Guide](./examples/README.md)** for detailed setup instructions and what each example demonstrates.
+## API Reference
 
-## What Gets Tracked
+### Initialize
 
-The middleware automatically captures:
+```go
+// Initialize with environment variables
+err := revenium.Initialize()
 
-- **Video Duration**: Length of generated videos in seconds
-- **Operation Type**: Image-to-video, video-to-video, or upscale
-- **Request Duration**: Total time for each API call (including polling)
-- **Model Information**: Which Runway model was used
-- **Credits Consumed**: Runway credits used for the generation
-- **Custom Metadata**: Business context you provide
-- **Error Tracking**: Failed requests and error details
-
-## Environment Variables
-
-### Required
-
-```bash
-RUNWAY_API_KEY=your_runway_api_key_here
-REVENIUM_METERING_API_KEY=your_revenium_api_key_here
+// Or with options
+err := revenium.Initialize(
+    revenium.WithRunwayAPIKey("your-key"),
+    revenium.WithReveniumAPIKey("hak_your-key"),
+)
 ```
-
-### Optional
-
-```bash
-# Runway API base URL (defaults to production)
-RUNWAY_BASE_URL=https://api.runwayml.com
-
-# Runway API version
-RUNWAY_VERSION=2024-11-06
-
-# Revenium API base URL (defaults to production)
-REVENIUM_METERING_BASE_URL=https://api.revenium.ai
-
-# Default metadata for all requests
-REVENIUM_ORGANIZATION_ID=my-company
-REVENIUM_PRODUCT_ID=my-app
-
-# Debug logging
-REVENIUM_LOG_LEVEL=INFO
-REVENIUM_VERBOSE_STARTUP=false
-```
-
-## Supported Operations
 
 ### Image to Video
 
-Generate videos from static images with text prompts.
+```go
+req := &revenium.ImageToVideoRequest{
+    PromptImage: "https://example.com/image.jpg", // URL or base64
+    PromptText:  "A cinematic shot",
+    Model:       "gen3a_turbo",
+    Duration:    5,   // 5 or 10 seconds
+    Ratio:       "16:9",
+    Seed:        nil, // Optional: for reproducibility
+}
 
-- **Model**: `gen3a_turbo`
-- **Duration**: 5 or 10 seconds
-- **Aspect Ratios**: 16:9, 9:16, 1:1
+result, err := client.ImageToVideo(ctx, req, metadata)
+```
 
 ### Video to Video
 
-Transform existing videos with AI-powered effects and styles.
+```go
+req := &revenium.VideoToVideoRequest{
+    PromptVideo: "https://example.com/video.mp4",
+    PromptText:  "Transform into anime style",
+    Model:       "gen3a_turbo",
+    Duration:    10,
+}
 
-- **Model**: `gen3a_turbo`
-- **Duration**: 5 or 10 seconds
+result, err := client.VideoToVideo(ctx, req, metadata)
+```
 
 ### Video Upscale
 
-Enhance video resolution and quality.
+```go
+req := &revenium.VideoUpscaleRequest{
+    PromptVideo: "https://example.com/video.mp4",
+    Model:       "upscale",
+}
 
-- **Model**: `upscale`
+result, err := client.UpscaleVideo(ctx, req, metadata)
+```
 
-## Troubleshooting
+## Configuration
 
-### Metering data not appearing in Revenium dashboard
+### Environment Variables
 
-**Problem**: Your app runs successfully but no data appears in Revenium.
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `RUNWAY_API_KEY` | Runway ML API key | (required) |
+| `RUNWAY_BASE_URL` | Runway API base URL | `https://api.runwayml.com` |
+| `RUNWAY_VERSION` | Runway API version | `2024-11-06` |
+| `REVENIUM_METERING_API_KEY` | Revenium API key | (required) |
+| `REVENIUM_METERING_BASE_URL` | Revenium API base URL | `https://api.revenium.ai` |
+| `REVENIUM_ORGANIZATION_ID` | Organization ID | (optional) |
+| `REVENIUM_PRODUCT_ID` | Product ID | (optional) |
+| `REVENIUM_LOG_LEVEL` | Log level (DEBUG/INFO/WARN/ERROR) | `INFO` |
+| `REVENIUM_VERBOSE_STARTUP` | Verbose startup logging | `false` |
 
-**Solution**: The middleware sends metering data asynchronously in the background. If your program exits too quickly, the data won't be sent. Add a delay before exit:
+### Programmatic Configuration
 
 ```go
-// At the end of your main() function
-time.Sleep(2 * time.Second)
+client, err := revenium.NewReveniumRunway(&revenium.Config{
+    RunwayAPIKey:    "your-runway-key",
+    ReveniumAPIKey:  "hak_your-revenium-key",
+    ReveniumBaseURL: "https://api.revenium.ai",
+})
 ```
 
-### "Failed to initialize" error
+## Metering
 
-Check your API keys:
+The middleware automatically sends metering data to Revenium for every video generation request. Metering is sent **asynchronously** (fire-and-forget) and includes:
 
-```bash
-echo $RUNWAY_API_KEY
-echo $REVENIUM_METERING_API_KEY
+- **Operation Type**: `VIDEO`
+- **Provider**: `runway`
+- **Model Source**: `RUNWAY`
+- **Model**: The specific Runway model used
+- **Duration**: Total time from request to completion
+- **Status**: Success/failure information
+- **Custom Metadata**: Organization, product, subscriber info
+
+### Metadata Structure
+
+```go
+metadata := &revenium.UsageMetadata{
+    OrganizationID:       "org-123",
+    ProductID:            "product-abc",
+    TaskType:             "video-generation",
+    Agent:                "my-ai-agent",
+    SubscriptionID:       "sub-456",
+    TraceID:              "trace-789",
+    Subscriber: map[string]interface{}{
+        "id":    "user-123",
+        "email": "user@example.com",
+        "name":  "John Doe",
+    },
+    TaskID:               "task-xyz",
+    ResponseQualityScore: &qualityScore, // *float64
+    Custom: map[string]interface{}{
+        "campaign": "holiday-2024",
+    },
+}
 ```
 
-### Task polling timeout
+## Task Polling
 
-Runway video generation can take several minutes. The middleware polls automatically with exponential backoff. Default timeout is 20 minutes.
+Video generation is asynchronous. The middleware automatically polls the Runway API until the task completes.
 
-### Enable debug logging
+### Default Polling Configuration
+
+- **Max Attempts**: 120
+- **Initial Interval**: 2 seconds
+- **Max Interval**: 10 seconds (exponential backoff)
+- **Timeout**: 20 minutes
+
+### Custom Polling Configuration
+
+```go
+pollingConfig := &revenium.PollingConfig{
+    MaxAttempts:     60,
+    InitialInterval: 3 * time.Second,
+    MaxInterval:     15 * time.Second,
+    Timeout:         10 * time.Minute,
+}
+
+// Use with direct client access
+runwayClient := revenium.NewRunwayClient(config)
+task, _ := runwayClient.CreateImageToVideo(ctx, req)
+result, err := runwayClient.WaitForTaskCompletion(ctx, task.ID, pollingConfig)
+```
+
+## Error Handling
+
+The middleware provides typed errors for better error handling:
+
+```go
+result, err := client.ImageToVideo(ctx, req, metadata)
+if err != nil {
+    if revenium.IsConfigError(err) {
+        // Configuration issue
+    } else if revenium.IsAuthError(err) {
+        // Authentication failed
+    } else if revenium.IsTaskError(err) {
+        // Task polling timeout or failure
+    } else if revenium.IsProviderError(err) {
+        // Runway API error
+    } else if revenium.IsNetworkError(err) {
+        // Network issue
+    }
+
+    // Get error details
+    if revErr, ok := err.(*revenium.ReveniumError); ok {
+        details := revErr.GetDetails()
+        statusCode := revErr.GetStatusCode()
+    }
+}
+```
+
+## Logging
+
+Control logging verbosity:
 
 ```bash
 export REVENIUM_LOG_LEVEL=DEBUG
-go run main.go
+export REVENIUM_VERBOSE_STARTUP=true
+```
+
+Or programmatically:
+
+```go
+revenium.SetLogger(myCustomLogger) // Implement Logger interface
+```
+
+## Examples
+
+See the `examples/` directory for more examples:
+
+- `examples/basic/` - Basic image-to-video generation
+- `examples/advanced/` - Advanced features with custom polling
+
+## Testing
+
+```bash
+go test ./...
 ```
 
 ## Requirements
 
-- **Go**: 1.21 or higher
-- **Runway ML API Key**: Get from [app.runwayml.com](https://app.runwayml.com/video-tools/gen-3/turbo/settings/api-keys)
-- **Revenium API Key**: Get from [app.revenium.ai](https://app.revenium.ai)
-
-## Documentation
-
-For more information and advanced usage:
-
-- [Revenium Documentation](https://docs.revenium.io)
-- [Runway ML Documentation](https://docs.runwayml.com)
-
-## Contributing
-
-See [CONTRIBUTING.md](CONTRIBUTING.md)
-
-## Code of Conduct
-
-See [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)
-
-## Security
-
-See [SECURITY.md](SECURITY.md)
-
-## License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+- Go 1.21 or higher
+- Runway ML API key
+- Revenium API key
 
 ## Support
 
-For issues, feature requests, or contributions:
+- **Documentation**: [https://docs.revenium.io](https://docs.revenium.io)
+- **Dashboard**: [https://app.revenium.ai](https://app.revenium.ai)
+- **Email**: support@revenium.io
 
-- **GitHub Repository**: [revenium/revenium-middleware-runway-go](https://github.com/revenium/revenium-middleware-runway-go)
-- **Issues**: [Report bugs or request features](https://github.com/revenium/revenium-middleware-runway-go/issues)
-- **Documentation**: [docs.revenium.io](https://docs.revenium.io)
-- **Contact**: Reach out to the Revenium team for additional support
+## License
 
----
-
-**Built by Revenium**
+MIT License - see LICENSE file for details
