@@ -153,6 +153,11 @@ func (r *ReveniumRunway) ImageToVideo(ctx context.Context, req *ImageToVideoRequ
 		result.Metadata["requestedDuration"] = 5 // Runway default
 	}
 
+	// Store prompt for capture if enabled (used by metering client)
+	if r.config.CapturePrompts && req.PromptText != "" {
+		result.Metadata["_capturedPrompt"] = req.PromptText
+	}
+
 	// Copy error information if failed
 	if statusResp.Error != nil {
 		result.Error = statusResp.Error
@@ -210,6 +215,11 @@ func (r *ReveniumRunway) VideoToVideo(ctx context.Context, req *VideoToVideoRequ
 		result.Metadata["requestedDuration"] = req.Duration
 	} else {
 		result.Metadata["requestedDuration"] = 5 // Runway default
+	}
+
+	// Store prompt for capture if enabled (used by metering client)
+	if r.config.CapturePrompts && req.PromptText != "" {
+		result.Metadata["_capturedPrompt"] = req.PromptText
 	}
 
 	// Copy error information if failed
