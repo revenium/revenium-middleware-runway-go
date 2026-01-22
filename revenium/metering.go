@@ -10,6 +10,36 @@ import (
 	"time"
 )
 
+// MaxPromptLength is the maximum length for captured prompts
+const MaxPromptLength = 50000
+
+// formatPromptAsInputMessages formats a single prompt string as JSON inputMessages
+// for compatibility with the Revenium dashboard's unified prompt view.
+// Format: [{"role": "user", "content": "<prompt>"}]
+func formatPromptAsInputMessages(prompt string) (string, bool) {
+	if prompt == "" {
+		return "", false
+	}
+
+	truncated := false
+	if len(prompt) > MaxPromptLength {
+		prompt = prompt[:MaxPromptLength] + "...[TRUNCATED]"
+		truncated = true
+	}
+
+	messages := []map[string]string{
+		{"role": "user", "content": prompt},
+	}
+
+	jsonBytes, err := json.Marshal(messages)
+	if err != nil {
+		Warn("Failed to serialize prompt as inputMessages: %v", err)
+		return "", truncated
+	}
+
+	return string(jsonBytes), truncated
+}
+
 // Package-level HTTP client with connection pooling for metering requests.
 // This prevents creating a new client for each metering call, avoiding
 // file descriptor exhaustion and TCP handshake overhead under high load.
@@ -168,11 +198,42 @@ func (m *MeteringClient) buildMeteringPayload(result *VideoGenerationResult, met
 		if metadata.ResponseQualityScore != nil {
 			payload["responseQualityScore"] = *metadata.ResponseQualityScore
 		}
+		// Multimodal job identifiers
+		if metadata.VideoJobID != "" {
+			payload["videoJobId"] = metadata.VideoJobID
+		}
+		if metadata.AudioJobID != "" {
+			payload["audioJobId"] = metadata.AudioJobID
+		}
 		if metadata.Custom != nil {
 			for k, v := range metadata.Custom {
 				// Only add if not already in payload
 				if _, exists := payload[k]; !exists {
 					payload[k] = v
+				}
+			}
+		}
+	}
+
+	// Add prompt capture fields when enabled (opt-in)
+	if m.config.CapturePrompts {
+		// Check for prompt in result metadata (stored by middleware)
+		if result.Metadata != nil {
+			if prompt, ok := result.Metadata["_capturedPrompt"].(string); ok && prompt != "" {
+				inputMessages, truncated := formatPromptAsInputMessages(prompt)
+				if inputMessages != "" {
+					payload["inputMessages"] = inputMessages
+				}
+				if truncated {
+					payload["promptsTruncated"] = true
+				}
+				Debug("Prompt capture enabled: captured %d chars", len(prompt))
+			}
+			// Add output URLs if available
+			if len(result.OutputURLs) > 0 {
+				outputJSON, err := json.Marshal(result.OutputURLs)
+				if err == nil {
+					payload["outputResponse"] = string(outputJSON)
 				}
 			}
 		}

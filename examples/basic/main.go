@@ -12,8 +12,16 @@ func main() {
 	fmt.Println("=== Revenium Runway Middleware - Basic Example ===")
 	fmt.Println()
 
-	// Initialize the middleware
-	if err := revenium.Initialize(); err != nil {
+	// Initialize the middleware with options
+	// Enable prompt capture for analytics (opt-in, default: false)
+	// When enabled, generation prompts are captured and sent with metering data
+	// Fields added to metering payload:
+	//   - inputMessages: JSON array with role/content format
+	//   - outputResponse: Generated video URLs
+	//   - promptsTruncated: true if prompt exceeded 50K chars
+	if err := revenium.Initialize(
+		revenium.WithCapturePrompts(true), // Enable prompt capture for analytics
+	); err != nil {
 		log.Fatalf("Failed to initialize middleware: %v", err)
 	}
 

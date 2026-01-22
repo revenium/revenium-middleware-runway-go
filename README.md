@@ -16,6 +16,7 @@ A lightweight, production-ready middleware that adds **Revenium metering and tra
 - **Video-to-Video** - Transform existing videos with AI
 - **Video Upscaling** - Enhance video resolution and quality
 - **Custom Metadata** - Add custom tracking metadata to any request
+- **Prompt Capture** - Optional analytics for generation prompts (opt-in)
 - **Production Ready** - Automatic task polling with retry logic
 
 ## Getting Started (5 minutes)
@@ -87,6 +88,7 @@ The middleware automatically captures:
 - **Credits Consumed**: Runway credits used for the generation
 - **Custom Metadata**: Business context you provide
 - **Error Tracking**: Failed requests and error details
+- **Prompt Content** (opt-in): Generation prompts when CapturePrompts enabled
 
 ## Environment Variables
 
@@ -121,6 +123,9 @@ REVENIUM_PRODUCT_ID=my-app
 # Debug logging
 REVENIUM_LOG_LEVEL=INFO
 REVENIUM_VERBOSE_STARTUP=false
+
+# Prompt capture for analytics (opt-in, default: false)
+REVENIUM_CAPTURE_PROMPTS=false
 ```
 
 ## Supported Operations
@@ -145,6 +150,46 @@ Transform existing videos with AI-powered effects and styles.
 Enhance video resolution and quality.
 
 - **Model**: `upscale`
+
+## Prompt Capture (Analytics)
+
+The middleware supports optional prompt capture for analytics and debugging. When enabled, generation prompts and output URLs are sent with metering data.
+
+**Important:** Prompt capture is **opt-in** and disabled by default for privacy.
+
+### Enable via Environment Variable
+
+```bash
+export REVENIUM_CAPTURE_PROMPTS=true
+```
+
+### Enable via Code
+
+```go
+// Enable prompt capture for analytics (opt-in, default: false)
+if err := revenium.Initialize(
+    revenium.WithCapturePrompts(true),
+); err != nil {
+    log.Fatal(err)
+}
+```
+
+### What Gets Captured
+
+When enabled, the following fields are added to metering payloads:
+
+| Field | Description |
+|-------|-------------|
+| `inputMessages` | JSON array with role/content format (e.g., `[{"role":"user","content":"A sunset..."}]`) |
+| `outputResponse` | Generated video URLs as JSON array |
+| `promptsTruncated` | `true` if prompt exceeded 50K character limit |
+
+### Privacy Considerations
+
+- Prompts may contain sensitive business or user content
+- Only enable in environments where prompt logging is acceptable
+- Consider data retention policies for captured prompts
+- Prompts are truncated at 50,000 characters to prevent payload bloat
 
 ## Troubleshooting
 

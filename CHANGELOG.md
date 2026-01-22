@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.1] - 2026-01-22
+
+### Added
+- Opt-in prompt capture for analytics via `WithCapturePrompts(true)` option
+  - `inputMessages`: JSON array with role/content format for generation prompts
+  - `outputResponse`: Generated video URLs from Runway
+  - `promptsTruncated`: Flag when prompt exceeds 50K character limit
+- Request timeout configuration via `RUNWAY_REQUEST_TIMEOUT` environment variable
+- Comprehensive examples demonstrating UsageMetadata fields
+
 ## [1.0.0] - 2026-01-09
 
 ### Added
